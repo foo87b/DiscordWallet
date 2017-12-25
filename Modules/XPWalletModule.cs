@@ -10,8 +10,12 @@ namespace DiscordWallet.Modules
     [Group("xp")]
     public class XPWalletModule : ModuleBase
     {
+        public static readonly Emoji REACTION_ERROR    = new Emoji("\u26a0"); // U+26A0 is :warning:
+        public static readonly Emoji REACTION_FAILURE  = new Emoji("\u274e"); // U+274E is :negative_squared_cross_mark:
+        public static readonly Emoji REACTION_PROGRESS = new Emoji("\u23f3"); // U+23F3 is :hourglass_flowing_sand:
+        public static readonly Emoji REACTION_SUCCESS  = new Emoji("\u2705"); // U+2705 is :white_check_mark:
         public static readonly Emoji REACTION_UNKNOWN  = new Emoji("\u2753"); // U+2753 is :question:
-        
+
         [Command("help")]
         public async Task CommandHelpAsync()
         {
