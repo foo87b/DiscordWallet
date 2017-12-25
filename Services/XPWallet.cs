@@ -12,6 +12,8 @@ namespace DiscordWallet.Services
 {
     public class XPWallet
     {
+        public const int CONFIRMATION = 6;
+
         public static Network Network { get; }
         
         private static RPCClient RPCClient { get; }
