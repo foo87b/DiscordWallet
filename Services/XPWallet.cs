@@ -3,8 +3,10 @@ using NBitcoin;
 using NBitcoin.RPC;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DiscordWallet.Services
 {
@@ -13,6 +15,8 @@ namespace DiscordWallet.Services
         public static Network Network { get; }
         
         private static RPCClient RPCClient { get; }
+
+        private HashSet<ulong> AccountList { get; } = new HashSet<ulong>();
 
         static XPWallet()
         {
@@ -37,6 +41,40 @@ namespace DiscordWallet.Services
                     Password = Environment.GetEnvironmentVariable("WALLET_XP_RPC_PASSWORD"),
                 },
             }, Network);
+        }
+
+        public bool HasAccount(IUser user)
+        {
+            return AccountList.Contains(user.Id);
+        }
+
+        public async Task<XPWalletAccount> GetAccount(IUser user)
+        {
+            var key = XPWalletAccountKey.Create(user);
+
+            if (!HasAccount(user))
+            {
+                await CreateAccount(key);
+            }
+
+            return new XPWalletAccount(this, key);
+        }
+
+        private async Task CreateAccount(XPWalletAccountKey key)
+        {
+            var addresses = RPCClient.GetAddressesByAccount(key.Label);
+
+            if (addresses.Count() == 0)
+            {
+                await RPCClient.SendCommandAsync(RPCOperations.setaccount, key.Address.ToString(), key.Label);
+                await RPCClient.ImportAddressAsync(key.Address, key.Label, false);
+            }
+            else if (addresses.Count() > 1 || !addresses.Any(a => a == key.Address))
+            {
+                throw new InvalidOperationException("サーバー側のアカウント情報が不正です。");
+            }
+
+            AccountList.Add(key.User.Id);
         }
     }
 
