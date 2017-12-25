@@ -45,5 +45,18 @@ namespace DiscordWallet.Modules
         {
             throw new NotImplementedException();
         }
+
+        [Command, Priority(-1)]
+        public async Task CommandAsync(params string[] args)
+        {
+            await ReactToUnknown();
+
+            await ReplyAsync($"{Context.User.Mention} コマンドを認識できませんでした。");
+        }
+
+        private async Task ReactToUnknown()
+        {
+            await Context.Message.AddReactionAsync(new Emoji("\u2753")); // U+2753 is :question:
+        }
     }
 }
