@@ -13,7 +13,7 @@ namespace DiscordWallet.Services
         public static Network Network { get; }
         
         private static RPCClient RPCClient { get; }
-        
+
         static XPWallet()
         {
             Network = new NetworkBuilder()
@@ -37,6 +37,22 @@ namespace DiscordWallet.Services
                     Password = Environment.GetEnvironmentVariable("WALLET_XP_RPC_PASSWORD"),
                 },
             }, Network);
+        }
+    }
+
+    public class XPWalletAccount
+    {
+        public IUser User => Key.User;
+        public string Label => Key.Label;
+        public BitcoinAddress Address => Key.Address;
+
+        private XPWallet Wallet { get; }
+        private XPWalletAccountKey Key { get; }
+
+        public XPWalletAccount(XPWallet wallet, XPWalletAccountKey key)
+        {
+            Wallet = wallet;
+            Key = key;
         }
     }
 
