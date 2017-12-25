@@ -1,4 +1,4 @@
-﻿using Discord.WebSocket;
+﻿using Discord;
 using NBitcoin;
 using NBitcoin.RPC;
 using System;
@@ -10,11 +10,11 @@ namespace DiscordWallet.Services
 {
     public class XPWallet
     {
-        public static Network Network { get; private set; }
-
-        private RPCClient RPCClient { get; }
+        public static Network Network { get; }
         
-        public XPWallet(DiscordSocketClient discord)
+        private static RPCClient RPCClient { get; }
+        
+        static XPWallet()
         {
             Network = new NetworkBuilder()
                 .SetName("xp")
