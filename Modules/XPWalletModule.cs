@@ -10,6 +10,8 @@ namespace DiscordWallet.Modules
     [Group("xp")]
     public class XPWalletModule : ModuleBase
     {
+        public static readonly Emoji REACTION_UNKNOWN  = new Emoji("\u2753"); // U+2753 is :question:
+        
         [Command("help")]
         public async Task CommandHelpAsync()
         {
@@ -49,14 +51,11 @@ namespace DiscordWallet.Modules
         [Command, Priority(-1)]
         public async Task CommandAsync(params string[] args)
         {
-            await ReactToUnknown();
-
-            await ReplyAsync($"{Context.User.Mention} コマンドを認識できませんでした。");
-        }
-
-        private async Task ReactToUnknown()
-        {
-            await Context.Message.AddReactionAsync(new Emoji("\u2753")); // U+2753 is :question:
+            await Task.WhenAll(new List<Task>()
+            {
+                Context.Message.AddReactionAsync(REACTION_UNKNOWN),
+                ReplyAsync($"{Context.User.Mention} コマンドを認識できませんでした。"),
+            });
         }
     }
 }
