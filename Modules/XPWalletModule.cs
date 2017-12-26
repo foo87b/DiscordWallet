@@ -12,6 +12,13 @@ namespace DiscordWallet.Modules
     [Group("xp")]
     public class XPWalletModule : ModuleBase
     {
+        public const string COMMAND_BALANCE  = "balance";
+        public const string COMMAND_DEPOSIT  = "deposit";
+        public const string COMMAND_HELP     = "help";
+        public const string COMMAND_RAIN     = "rain";
+        public const string COMMAND_TIP      = "tip";
+        public const string COMMAND_WITHDRAW = "withdraw";
+
         public static readonly Emoji REACTION_ERROR    = new Emoji("\u26a0"); // U+26A0 is :warning:
         public static readonly Emoji REACTION_FAILURE  = new Emoji("\u274e"); // U+274E is :negative_squared_cross_mark:
         public static readonly Emoji REACTION_PROGRESS = new Emoji("\u23f3"); // U+23F3 is :hourglass_flowing_sand:
@@ -21,9 +28,64 @@ namespace DiscordWallet.Modules
         public XPWallet Wallet { get; set; }
 
         [Command("help")]
-        public async Task CommandHelpAsync()
+        public async Task CommandHelpAsync(string command = null)
         {
-            throw new NotImplementedException();
+            if (String.IsNullOrWhiteSpace(command))
+            {
+                await ReplyAsync(String.Join("\n", new string[]
+                {
+                    $"```asciidoc",
+                    $"= コマンド一覧",
+                    $"!xp {COMMAND_BALANCE}  :: 現在の残高を表示します。",
+                    $"!xp {COMMAND_DEPOSIT}  :: 預入先となるアドレスを表示します。",
+                    $"!xp {COMMAND_WITHDRAW} :: 指定した量のXPを外部アドレスへ送付します。",
+                    $"!xp {COMMAND_TIP}      :: 指定した量のXPをDiscord上のユーザーへ送付します。",
+                    $"!xp {COMMAND_RAIN}     :: Discordのチャンネルに居るオンライン状態のユーザーへ指定した量のXPを分配します。",
+                    $"!xp {COMMAND_HELP}     :: 詳しく知りたいコマンドを指定することでより詳細なヘルプを表示します。",
+                    $"",
+                    $"[!xp help <コマンド> にて詳細なヘルプを表示します。]",
+                    $"引数や制限については各コマンドのヘルプをご参照ください。",
+                    $"",
+                    $"= XPJPWalletについて",
+                    $"eXperience Points (XP) を管理出来るDiscord上のウォレットです。",
+                    $"サポートしている機能はコマンド一覧をご確認ください。",
+                    $"",
+                    $"= 預入について",
+                    $"当ウォレットへ預入を行った場合、{XPWallet.CONFIRMATION} confirmation にて利用が可能となります。",
+                    $"アドレスを間違えて預入されますと、こちらではどうすることも出来ませんのでお気を付けください。",
+                    $"",
+                    $"= 鋳造について",
+                    $"2017年12月現在、鋳造はサポートしておりませんので残高は増えません。",
+                    $"将来的なサポートへ向け開発を行っておりますので、続報をお待ちください。",
+                    $"```",
+                }));
+
+                return;
+            }
+
+            switch (command)
+            {
+                case COMMAND_BALANCE:
+                    throw new NotImplementedException();
+
+                case COMMAND_DEPOSIT:
+                    throw new NotImplementedException();
+
+                case COMMAND_HELP:
+                    throw new NotImplementedException();
+
+                case COMMAND_RAIN:
+                    throw new NotImplementedException();
+
+                case COMMAND_TIP:
+                    throw new NotImplementedException();
+
+                case COMMAND_WITHDRAW:
+                    throw new NotImplementedException();
+
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         [Command("balance")]
