@@ -27,7 +27,7 @@ namespace DiscordWallet.Modules
 
         public XPWallet Wallet { get; set; }
 
-        [Command("help")]
+        [Command(COMMAND_HELP)]
         public async Task CommandHelpAsync(string command = null)
         {
             await Context.Message.AddReactionAsync(REACTION_PROGRESS);
@@ -90,13 +90,13 @@ namespace DiscordWallet.Modules
             }
         }
 
-        [Command("balance")]
+        [Command(COMMAND_BALANCE)]
         public async Task CommandBalanceAsync()
         {
             throw new NotImplementedException();
         }
 
-        [Command("deposit")]
+        [Command(COMMAND_DEPOSIT)]
         public async Task CommandDepositAsync()
         {
             await Context.Message.AddReactionAsync(REACTION_PROGRESS);
@@ -126,19 +126,19 @@ namespace DiscordWallet.Modules
             }
         }
 
-        [Command("withdraw")]
+        [Command(COMMAND_WITHDRAW)]
         public async Task CommandWithdrawAsync(string address, decimal amount)
         {
             throw new NotImplementedException();
         }
 
-        [Command("tip")]
+        [Command(COMMAND_TIP)]
         public async Task CommandTipAsync(IUser user, decimal amount)
         {
             throw new NotImplementedException();
         }
 
-        [Command("rain")]
+        [Command(COMMAND_RAIN)]
         public async Task CommandRainAsync(decimal amount)
         {
             throw new NotImplementedException();
