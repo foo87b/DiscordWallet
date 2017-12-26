@@ -197,7 +197,7 @@ namespace DiscordWallet.Modules
 
         private string GetExplorerURL(BitcoinAddress address)
         {
-            return $"https://chainz.cryptoid.info/xp/search.dws?q={address}";
+            return $"https://chainz.cryptoid.info/xp/address.dws?{address}.htm";
         }
 
         private string MoneyToString(Money money)
