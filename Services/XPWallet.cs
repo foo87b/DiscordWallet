@@ -50,7 +50,7 @@ namespace DiscordWallet.Services
             return AccountList.Contains(user.Id);
         }
 
-        public async Task<XPWalletAccount> GetAccount(IUser user)
+        public async Task<XPWalletAccount> GetAccount(IUser user, bool sync = false)
         {
             var key = XPWalletAccountKey.Create(user);
 
@@ -59,7 +59,19 @@ namespace DiscordWallet.Services
                 await CreateAccount(key);
             }
 
-            return new XPWalletAccount(this, key);
+            var account = new XPWalletAccount(this, key);
+
+            if (sync)
+            {
+                await account.Sync();
+            }
+
+            return account;
+        }
+
+        public async Task<UnspentCoin[]> GetUnspentCoins(BitcoinAddress address, int minconf = 0, int maxconf = 9999999)
+        {
+            return await RPCClient.ListUnspentAsync(minconf, maxconf, address);
         }
 
         private async Task CreateAccount(XPWalletAccountKey key)
@@ -85,6 +97,13 @@ namespace DiscordWallet.Services
         public IUser User => Key.User;
         public string Label => Key.Label;
         public BitcoinAddress Address => Key.Address;
+        public Money TotalBalance { get; private set; } = Money.Zero;
+        public Money PendingBalance { get; private set; } = Money.Zero;
+        public Money ConfirmedBalance { get; private set; } = Money.Zero;
+        public Money UnconfirmedBalance { get; private set; } = Money.Zero;
+        public IEnumerable<UnspentCoin> PendingCoins { get; private set; } = new UnspentCoin[0];
+        public IEnumerable<UnspentCoin> ConfirmedCoins { get; private set; } = new UnspentCoin[0];
+        public IEnumerable<UnspentCoin> UnconfirmedCoins { get; private set; } = new UnspentCoin[0];
 
         private XPWallet Wallet { get; }
         private XPWalletAccountKey Key { get; }
@@ -93,6 +112,25 @@ namespace DiscordWallet.Services
         {
             Wallet = wallet;
             Key = key;
+        }
+
+        public async Task Sync()
+        {
+            await UpdateUnspentCoins();
+        }
+
+        private async Task UpdateUnspentCoins()
+        {
+            var coins = await Wallet.GetUnspentCoins(Address);
+
+            PendingCoins = coins.Where(c => c.Confirmations < XPWallet.CONFIRMATION && c.Confirmations > 0);
+            ConfirmedCoins = coins.Where(c => c.Confirmations >= XPWallet.CONFIRMATION);
+            UnconfirmedCoins = coins.Where(c => c.Confirmations == 0);
+
+            PendingBalance = MoneyExtensions.Sum(PendingCoins.Select(c => c.Amount));
+            ConfirmedBalance = MoneyExtensions.Sum(ConfirmedCoins.Select(c => c.Amount));
+            UnconfirmedBalance = MoneyExtensions.Sum(UnconfirmedCoins.Select(c => c.Amount));
+            TotalBalance = ConfirmedBalance + PendingBalance;
         }
     }
 

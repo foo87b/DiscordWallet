@@ -32,7 +32,7 @@ namespace DiscordWallet.Modules
         public async Task CommandHelpAsync(string command = null)
         {
             await Context.Message.AddReactionAsync(REACTION_PROGRESS);
-
+            
             if (String.IsNullOrWhiteSpace(command))
             {
                 await ReplySuccess(String.Join("\n", new string[]
@@ -94,7 +94,47 @@ namespace DiscordWallet.Modules
         [Command(COMMAND_BALANCE)]
         public async Task CommandBalanceAsync()
         {
-            throw new NotImplementedException();
+            await Context.Message.AddReactionAsync(REACTION_PROGRESS);
+
+            try
+            {
+                var account = await Wallet.GetAccount(Context.User, true);
+
+                var embed = new EmbedBuilder()
+                {
+                    Color = Color.DarkPurple,
+                    Title = "eXperience Points: 残高",
+
+                    Description = String.Join("\n", new string[]
+                    {
+                        $"{Context.User.Mention}さんの残高は下記となります。",
+                        $"`{COMMAND_TIP}`や`{COMMAND_RAIN}`で利用可能なのは検証済の分のみとなりますのでご注意ください。",
+                    }),
+
+                    Author = new EmbedAuthorBuilder()
+                        .WithUrl(GetExplorerURL(account.Address))
+                        .WithName($"{Context.User.Username}#{Context.User.Discriminator}")
+                        .WithIconUrl(Context.User.GetAvatarUrl()),
+
+                    Fields = new List<EmbedFieldBuilder>
+                    {
+                        new EmbedFieldBuilder().WithName("残高").WithValue($"{MoneyToString(account.TotalBalance)} XP"),
+                        new EmbedFieldBuilder().WithIsInline(true).WithName("検証済").WithValue($"{MoneyToString(account.ConfirmedBalance)} XP"),
+                        new EmbedFieldBuilder().WithIsInline(true).WithName("検証中").WithValue($"{MoneyToString(account.PendingBalance)} XP"),
+                        new EmbedFieldBuilder().WithIsInline(true).WithName("未検証").WithValue($"{MoneyToString(account.UnconfirmedBalance)} XP"),
+                    },
+                };
+
+                
+
+                await ReplySuccess("eXperience Points 残高のご案内です。", embed);
+            }
+            catch (Exception e)
+            {
+                await ReplyError(e);
+
+                throw e;
+            }
         }
 
         [Command(COMMAND_DEPOSIT)]
@@ -158,6 +198,11 @@ namespace DiscordWallet.Modules
         private string GetExplorerURL(BitcoinAddress address)
         {
             return $"https://chainz.cryptoid.info/xp/search.dws?q={address}";
+        }
+
+        private string MoneyToString(Money money)
+        {
+            return money.ToDecimal(MoneyUnit.BTC).ToString("F6");
         }
 
         private async Task ReplySuccess(string message, EmbedBuilder embed = null)
