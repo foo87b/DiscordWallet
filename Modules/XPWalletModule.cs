@@ -157,12 +157,15 @@ namespace DiscordWallet.Modules
             return $"https://chainz.cryptoid.info/xp/search.dws?q={address}";
         }
 
-        private async Task ReplySuccess(string message, EmbedBuilder embed)
+        private async Task ReplySuccess(string message, EmbedBuilder embed = null)
         {
-            embed.Timestamp = DateTime.UtcNow;
-            embed.Footer = new EmbedFooterBuilder()
-                .WithText("XPJPWallet")
-                .WithIconUrl(Context.Client.CurrentUser.GetAvatarUrl());
+            if (embed != null)
+            {
+                embed.Timestamp = DateTime.UtcNow;
+                embed.Footer = new EmbedFooterBuilder()
+                    .WithText("XPJPWallet")
+                    .WithIconUrl(Context.Client.CurrentUser.GetAvatarUrl());
+            }
 
             await Task.WhenAll(new List<Task>()
             {
