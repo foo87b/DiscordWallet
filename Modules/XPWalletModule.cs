@@ -30,9 +30,11 @@ namespace DiscordWallet.Modules
         [Command("help")]
         public async Task CommandHelpAsync(string command = null)
         {
+            await Context.Message.AddReactionAsync(REACTION_PROGRESS);
+
             if (String.IsNullOrWhiteSpace(command))
             {
-                await ReplyAsync(String.Join("\n", new string[]
+                await ReplySuccess(String.Join("\n", new string[]
                 {
                     $"```asciidoc",
                     $"= コマンド一覧",
