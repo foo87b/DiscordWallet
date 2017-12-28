@@ -8,7 +8,7 @@ namespace DiscordWallet.Utilities.XPCoin
 
     public class XPWalletAccountKey
     {
-        private static ExtKey MasterKey = ExtKey.Parse(Environment.GetEnvironmentVariable("WALLET_MASTER_PRIVATE_KEY"), XPWallet.Network);
+        private static ExtKey MasterKey = ExtKey.Parse(Environment.GetEnvironmentVariable("WALLET_MASTER_PRIVATE_KEY"), XPCoin.Network);
 
         public IUser User { get; }
         public string Label { get; }
@@ -45,7 +45,7 @@ namespace DiscordWallet.Utilities.XPCoin
 
         private BitcoinAddress GetAddress(int index = 0)
         {
-            return GetExtKey(index).ScriptPubKey.GetDestinationAddress(XPWallet.Network);
+            return GetExtKey(index).ScriptPubKey.GetDestinationAddress(XPCoin.Network);
         }
 
         private Key GetKey(int index = 0)

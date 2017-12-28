@@ -13,8 +13,6 @@ namespace DiscordWallet.Services
     public class XPWallet
     {
         public const int CONFIRMATION = 6;
-
-        public static Network Network { get; }
         
         private static RPCClient RPCClient { get; }
 
@@ -22,18 +20,6 @@ namespace DiscordWallet.Services
 
         static XPWallet()
         {
-            Network = new NetworkBuilder()
-                .SetName("xp")
-                .SetMagic(0xe5e2f8b4)
-                .SetPort(28192)
-                .SetRPCPort(28191)
-                .SetBase58Bytes(Base58Type.SECRET_KEY, new byte[] { 203 })
-                .SetBase58Bytes(Base58Type.PUBKEY_ADDRESS, new byte[] { 75 })
-                .SetBase58Bytes(Base58Type.SCRIPT_ADDRESS, new byte[] { 20 })
-                .SetGenesis(new Block()) // FIXME
-                .SetConsensus(new Consensus()) // FIXME
-                .BuildAndRegister();
-            
             RPCClient = new RPCClient(new RPCCredentialString()
             {
                 Server = Environment.GetEnvironmentVariable("WALLET_XP_RPC_SERVER"),
@@ -42,7 +28,7 @@ namespace DiscordWallet.Services
                     UserName = Environment.GetEnvironmentVariable("WALLET_XP_RPC_USERNAME"),
                     Password = Environment.GetEnvironmentVariable("WALLET_XP_RPC_PASSWORD"),
                 },
-            }, Network);
+            }, XPCoin.Network);
         }
 
         public bool HasAccount(IUser user)
