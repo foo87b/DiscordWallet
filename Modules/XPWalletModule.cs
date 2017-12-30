@@ -178,8 +178,14 @@ namespace DiscordWallet.Modules
             try
             {
                 var destination = BitcoinAddress.Create(address, XPCoin.Network);
-                var tx = await TransferTo(account, destination, amount, embed);
 
+                // exception: send to yourself
+                if (account.Address == destination)
+                {
+                    throw new FormatException();
+                }
+
+                var tx = await TransferTo(account, destination, amount, embed);
                 if (tx != null)
                 {
                     embed.Color = Color.DarkerGrey;
