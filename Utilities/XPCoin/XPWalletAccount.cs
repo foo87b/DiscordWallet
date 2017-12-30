@@ -35,6 +35,22 @@ namespace DiscordWallet.Utilities.XPCoin
             await UpdateUnspentCoins();
         }
 
+        public async Task<XPTransaction> SendTo(BitcoinAddress destination, Money amount)
+        {
+            var coins = PickupUnspentCoins(amount);
+            var tx = new TransactionBuilder()
+                .AddCoins(coins.Select(c => c.AsCoin()))
+                .SetChange(Address)
+                .Send(destination, amount)
+                .BuildTransaction(false);
+            
+            var result = await Wallet.SendTransaction(tx, coins, Key.GetP2PKHSigner(coins));
+
+            SpentCoins(coins);
+
+            return result;
+        }
+
         private async Task UpdateUnspentCoins()
         {
             var coins = await Wallet.GetUnspentCoins(Address);
@@ -47,6 +63,33 @@ namespace DiscordWallet.Utilities.XPCoin
             ConfirmedBalance = MoneyExtensions.Sum(ConfirmedCoins.Select(c => c.Amount));
             UnconfirmedBalance = MoneyExtensions.Sum(UnconfirmedCoins.Select(c => c.Amount));
             TotalBalance = ConfirmedBalance + PendingBalance;
+        }
+
+        private IEnumerable<UnspentCoin> PickupUnspentCoins(Money amount)
+        {
+            var coins = ConfirmedCoins.Where(c => c.Amount >= amount).OrderBy(c => c.Amount);
+            
+            if (coins.Count() >= 1)
+            {
+                return coins.Take(1);
+            }
+            else
+            {
+                var total = Money.Zero;
+
+                return ConfirmedCoins.OrderByDescending(c => c.Amount).TakeWhile(c =>
+                {
+                    total += c.Amount;
+
+                    return total < amount;
+                });
+            }
+        }
+
+        private void SpentCoins(IEnumerable<UnspentCoin> coins)
+        {
+            ConfirmedCoins = ConfirmedCoins.Except(coins);
+            ConfirmedBalance = MoneyExtensions.Sum(ConfirmedCoins.Select(c => c.Amount));
         }
     }
 }

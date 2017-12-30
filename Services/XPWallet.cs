@@ -60,6 +60,45 @@ namespace DiscordWallet.Services
             return await RPCClient.ListUnspentAsync(minconf, maxconf, address);
         }
 
+        public async Task<XPTransaction> SendTransaction(Transaction tx, IEnumerable<UnspentCoin> coins, Action<XPTransaction> signer)
+        {
+            var time = DateTimeOffset.UtcNow;
+            var baseTx = new XPTransaction(tx) { Time = time };
+            var truncatedTx = new XPTransaction(tx) { Time = time };
+
+            // truncate value (1XP = 1000000satoshi)
+            truncatedTx.Outputs.ForEach(o => o.Value = Money.Satoshis(o.Value.ToDecimal(MoneyUnit.Satoshi) / 100m));
+
+            // double check transaction (fail safe)
+            var decodedTx = new XPTransaction(await RPCClient.DecodeRawTransactionAsync(truncatedTx.ToBytes()));
+            if (baseTx.GetHash() != decodedTx.GetHash())
+            {
+                throw new InvalidOperationException("生成されたトランザクションにエラーがあります。 (ダブルチェックエラー)");
+            }
+            
+            signer.Invoke(truncatedTx);
+            
+            var check = truncatedTx.Check();
+            if (check != TransactionCheckResult.Success)
+            {
+                throw new InvalidOperationException($"生成されたトランザクションにエラーがあります。 (チェックエラー: {check})");
+            }
+
+            // truncate value (1XP = 1000000satoshi)
+            var spents = coins.Select(c => new Coin(c.OutPoint, new TxOut(Money.Satoshis(c.Amount.ToDecimal(MoneyUnit.Satoshi) / 100m), c.ScriptPubKey)));
+
+            var fee = XPCoin.CalculateFee(truncatedTx, coins);
+            var pay = truncatedTx.GetFee(spents.ToArray());
+            if (fee > Money.Zero && pay != fee)
+            {
+                throw new InvalidOperationException($"生成されたトランザクションにエラーがあります。 (手数料不一致: fee={fee}, pay={pay})");
+            }
+                 
+            await RPCClient.SendRawTransactionAsync(truncatedTx.ToBytes());
+
+            return truncatedTx;
+        }
+
         private async Task CreateAccount(XPWalletAccountKey key)
         {
             var addresses = RPCClient.GetAddressesByAccount(key.Label);

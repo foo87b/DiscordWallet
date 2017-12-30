@@ -12,6 +12,8 @@ namespace DiscordWallet.Modules
     [Group("xp")]
     public class XPWalletModule : ModuleBase
     {
+        public const decimal TRANSFER_MIN = 0.01m;
+        public const decimal TRANSFER_MAX = 10000000000m;
         public const string COMMAND_BALANCE  = "balance";
         public const string COMMAND_DEPOSIT  = "deposit";
         public const string COMMAND_HELP     = "help";
@@ -164,7 +166,52 @@ namespace DiscordWallet.Modules
         [Command(COMMAND_WITHDRAW)]
         public async Task CommandWithdrawAsync(string address, decimal amount)
         {
-            throw new NotImplementedException();
+            await Context.Message.AddReactionAsync(REACTION_PROGRESS);
+            
+            var account = await Wallet.GetAccount(Context.User, true);
+            var embed = DefaultEmbed(account, new EmbedBuilder()
+            {
+                Color = Color.Red,
+                Title = $"eXperience Points: {COMMAND_WITHDRAW}",
+            });
+            
+            try
+            {
+                var destination = BitcoinAddress.Create(address, XPCoin.Network);
+                var tx = await TransferTo(account, destination, amount, embed);
+
+                if (tx != null)
+                {
+                    embed.Color = Color.DarkerGrey;
+                    embed.Description = String.Join("\n", new[]
+                    {
+                        $"{account.User.Mention}さんが指定されたアドレスへ送付が完了しました。",
+                        $"今回の取引の詳細は下記となりますので確認をお願いします。",
+                    });
+
+                    await ReplySuccess($"eXperience Points 送付が完了しました。", EmbedSendFields(account, destination, amount, embed, tx));
+                }
+                else
+                {
+                    await ReplyFailure($"eXperience Points 送付に失敗しました。", EmbedSendFields(account, destination, amount, embed));
+                }
+            }
+            catch (FormatException)
+            {
+                embed.Description = String.Join("\n", new[]
+                {
+                    $"{account.User.Mention}さんが指定された宛先への送付が出来ませんでした。",
+                    $"__**送付先のアドレス**__に間違いがないか確認をお願いします。",
+                });
+
+                await ReplyFailure($"eXperience Points 送付に失敗しました。", EmbedSendFields(account, null, address, amount, embed));
+            }
+            catch (Exception e)
+            {
+                await ReplyError(e);
+
+                throw e;
+            }
         }
 
         [Command(COMMAND_TIP)]
@@ -195,6 +242,45 @@ namespace DiscordWallet.Modules
             });
         }
 
+        private async Task<XPTransaction> TransferTo(XPWalletAccount account, BitcoinAddress destination, decimal amount, EmbedBuilder embed)
+        {
+            try
+            {
+                if (amount < TRANSFER_MIN || amount > TRANSFER_MAX)
+                {
+                    throw new ArgumentOutOfRangeException();
+                }
+
+                return await account.SendTo(destination, XPCoin.ToMoney(amount));
+            }
+            catch (InvalidCastException)
+            {
+                embed.Description = String.Join("\n", new[]
+                {
+                    $"{account.User.Mention}さんが指定された宛先への送付が出来ませんでした。",
+                    $"送付可能な量は__**小数点第六位**__までとなります。",
+                });
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                embed.Description = String.Join("\n", new[]
+                {
+                    $"{account.User.Mention}さんが指定された宛先への送付が出来ませんでした。",
+                    $"送付可能な量は __**`{TRANSFER_MIN} XP` から `{TRANSFER_MAX} XP`**__ までとなります。",
+                });
+            }
+            catch (NotEnoughFundsException)
+            {
+                embed.Description = String.Join("\n", new[]
+                {
+                    $"{account.User.Mention}さんが指定された宛先への送付が出来ませんでした。",
+                    $"__**送付可能な残高が不足**__ しております。",
+                });
+            }
+
+            return null;
+        }
+
         private EmbedBuilder DefaultEmbed(XPWalletAccount account, EmbedBuilder embed = null)
         {
             return (embed ?? new EmbedBuilder())
@@ -211,12 +297,42 @@ namespace DiscordWallet.Modules
                 })
                 .WithCurrentTimestamp();
         }
+        
+        private EmbedBuilder EmbedSendFields(XPWalletAccount from, BitcoinAddress to, decimal amount, EmbedBuilder embed, XPTransaction tx = null) => EmbedSendFields(from, to, to.ToString(), amount, embed, tx);
+        private EmbedBuilder EmbedSendFields(XPWalletAccount from, BitcoinAddress to, string label, decimal amount, EmbedBuilder embed, XPTransaction tx = null)
+        {
+            embed.AddField("残高 (検証済の分)", $"{XPCoin.ToString(from.ConfirmedBalance)} XP");
+            embed.AddField("送付元", $"[{from.User.Username}#{from.User.Discriminator}]({XPCoin.GetExplorerURL(from.Address)})", true);
+            embed.AddField("送付先", to != null ? $"[{label}]({XPCoin.GetExplorerURL(to)})" : label, true);
+            embed.AddField("送付量", $"{XPCoin.ToString(amount)} XP", true);
+
+            if (tx != null)
+            {
+                embed.AddField("結果", "成功", true);
+                embed.AddField("トランザクション", $"[{tx.GetHash()}]({XPCoin.GetExplorerURL(tx.GetHash())})");
+            }
+            else
+            {
+                embed.AddField("結果", "失敗", true);
+            }
+
+            return embed;
+        }
 
         private async Task ReplySuccess(string message, Embed embed = null)
         {
             await Task.WhenAll(new List<Task>()
             {
                 Context.Message.AddReactionAsync(REACTION_SUCCESS),
+                ReplyAsync($"{Context.User.Mention} {message}", false, embed)
+            });
+        }
+
+        private async Task ReplyFailure(string message, Embed embed = null)
+        {
+            await Task.WhenAll(new List<Task>()
+            {
+                Context.Message.AddReactionAsync(REACTION_FAILURE),
                 ReplyAsync($"{Context.User.Mention} {message}", false, embed)
             });
         }

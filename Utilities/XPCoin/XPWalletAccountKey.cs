@@ -1,7 +1,10 @@
 ﻿using Discord;
-using DiscordWallet.Services;
 using NBitcoin;
+using NBitcoin.BuilderExtensions;
+using NBitcoin.RPC;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DiscordWallet.Utilities.XPCoin
 {
@@ -26,6 +29,26 @@ namespace DiscordWallet.Utilities.XPCoin
             Label = GetLabel();
             KeyPath = GetKeyPath();
             Address = GetAddress();
+        }
+
+        public Action<XPTransaction> GetP2PKHSigner(IEnumerable<UnspentCoin> coins) => GetP2PKHSigner(coins.Select(c => c.AsCoin()));
+        public Action<XPTransaction> GetP2PKHSigner(IEnumerable<ICoin> coins)
+        {
+            return tx =>
+            {
+                var key = GetKey();
+                var builder = new P2PKHBuilderExtension();
+
+                for (var i = 0; i < tx.Inputs.Count; i++)
+                {
+                    var coin = coins.FirstOrDefault(c => c.Outpoint == tx.Inputs[i].PrevOut);
+
+                    if (coin != null)
+                    {
+                        tx.Inputs[i].ScriptSig = PayToPubkeyHashTemplate.Instance.GenerateScriptSig(tx.SignInput(key, coin), key.PubKey);
+                    }
+                }
+            };
         }
 
         private string GetLabel(int index = 0)
