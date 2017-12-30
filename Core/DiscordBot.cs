@@ -132,7 +132,7 @@ namespace DiscordWallet.Core
                     ? Regex.Replace(message.Content.Substring(pos), @"\p{Zs}", " ")
                     : string.Empty;
 
-                if (command == string.Empty)
+                if (command == string.Empty || !Regex.IsMatch(command, @"^[a-z0-9]", RegexOptions.IgnoreCase))
                 {
                     return;
                 }
