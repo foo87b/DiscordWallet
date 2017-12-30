@@ -16,6 +16,7 @@ namespace DiscordWallet.Modules
         public const string COMMAND_DEPOSIT  = "deposit";
         public const string COMMAND_HELP     = "help";
         public const string COMMAND_RAIN     = "rain";
+        public const string COMMAND_STORM    = "storm";
         public const string COMMAND_TIP      = "tip";
         public const string COMMAND_WITHDRAW = "withdraw";
 
@@ -43,7 +44,8 @@ namespace DiscordWallet.Modules
                     $"!xp {COMMAND_DEPOSIT}  :: 預入先となるアドレスを表示します。",
                     $"!xp {COMMAND_WITHDRAW} :: 指定した量のXPを外部アドレスへ送付します。",
                     $"!xp {COMMAND_TIP}      :: 指定した量のXPをDiscord上のユーザーへ送付します。",
-                    $"!xp {COMMAND_RAIN}     :: Discordのチャンネルに居るオンライン状態のユーザーへ指定した量のXPを分配します。",
+                    $"!xp {COMMAND_RAIN}     :: Discordのチャンネルに居る特定の状態のユーザーへ指定した量のXPを分配します。 (量÷人数)",
+                    $"!xp {COMMAND_STORM}    :: Discordのチャンネルに居る特定の状態のユーザーへ指定した量のXPを配布します。 (量×人数)",
                     $"!xp {COMMAND_HELP}     :: 詳しく知りたいコマンドを指定することでより詳細なヘルプを表示します。",
                     $"",
                     $"[!xp help <コマンド> にて詳細なヘルプを表示します。]",
@@ -78,6 +80,9 @@ namespace DiscordWallet.Modules
                     throw new NotImplementedException();
 
                 case COMMAND_RAIN:
+                    throw new NotImplementedException();
+
+                case COMMAND_STORM:
                     throw new NotImplementedException();
 
                 case COMMAND_TIP:
@@ -169,7 +174,13 @@ namespace DiscordWallet.Modules
         }
 
         [Command(COMMAND_RAIN)]
-        public async Task CommandRainAsync(decimal amount)
+        public async Task CommandRainAsync(decimal amount, string mode = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        [Command(COMMAND_STORM)]
+        public async Task CommandStormAsync(decimal amount, string mode = null)
         {
             throw new NotImplementedException();
         }
