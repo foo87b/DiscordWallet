@@ -223,7 +223,56 @@ namespace DiscordWallet.Modules
         [Command(COMMAND_TIP)]
         public async Task CommandTipAsync(IUser user, decimal amount)
         {
-            throw new NotImplementedException();
+            await Context.Message.AddReactionAsync(REACTION_PROGRESS);
+
+            var destination = Wallet.GetAddress(user);
+            var account = await Wallet.GetAccount(Context.User, true);
+            var embed = DefaultEmbed(account, new EmbedBuilder()
+            {
+                Color = Color.Red,
+                Title = $"eXperience Points: {COMMAND_TIP}",
+            });
+
+            try
+            {
+                if (Context.User.Id == user.Id || await Context.Channel.GetUserAsync(user.Id, CacheMode.CacheOnly) == null)
+                {
+                    throw new FormatException();
+                }
+
+                var tx = await TransferTo(account, destination, amount, embed);
+                if (tx != null)
+                {
+                    embed.Color = Color.DarkerGrey;
+                    embed.Description = String.Join("\n", new[]
+                    {
+                        $"{account.User.Mention}さんが指定された宛先へ送付が完了しました。",
+                        $"今回の取引の詳細は下記となりますので確認をお願いします。",
+                    });
+
+                    await ReplySuccess($"eXperience Points 送付が完了しました。", EmbedSendFields(account, destination, amount, embed, tx));
+                }
+                else
+                {
+                    await ReplyFailure($"eXperience Points 送付に失敗しました。", EmbedSendFields(account, destination, amount, embed));
+                }
+            }
+            catch (FormatException)
+            {
+                embed.Description = String.Join("\n", new[]
+                {
+                    $"{account.User.Mention}さんが指定された宛先への送付が出来ませんでした。",
+                    $"__**自分自身やチャンネルに居ないユーザー**__の指定は行えません。",
+                });
+
+                await ReplyFailure($"eXperience Points 送付に失敗しました。", EmbedSendFields(account, destination, user, amount, embed));
+            }
+            catch (Exception e)
+            {
+                await ReplyError(e);
+
+                throw e;
+            }
         }
 
         [Command(COMMAND_RAIN)]
@@ -303,7 +352,8 @@ namespace DiscordWallet.Modules
                 })
                 .WithCurrentTimestamp();
         }
-        
+
+        private EmbedBuilder EmbedSendFields(XPWalletAccount from, BitcoinAddress to, IUser user, decimal amount, EmbedBuilder embed, XPTransaction tx = null) => EmbedSendFields(from, to, $"{user.Username}#{user.Discriminator}", amount, embed, tx);
         private EmbedBuilder EmbedSendFields(XPWalletAccount from, BitcoinAddress to, decimal amount, EmbedBuilder embed, XPTransaction tx = null) => EmbedSendFields(from, to, to.ToString(), amount, embed, tx);
         private EmbedBuilder EmbedSendFields(XPWalletAccount from, BitcoinAddress to, string label, decimal amount, EmbedBuilder embed, XPTransaction tx = null)
         {
