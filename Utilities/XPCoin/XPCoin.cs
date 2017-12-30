@@ -23,5 +23,15 @@ namespace DiscordWallet.Utilities.XPCoin
                 .SetConsensus(new Consensus()) // FIXME
                 .BuildAndRegister();
         }
+
+        public static string ToString(Money money)
+        {
+            return money.ToDecimal(MoneyUnit.BTC).ToString("F6");
+        }
+
+        public static string GetExplorerURL(BitcoinAddress address)
+        {
+            return $"https://chainz.cryptoid.info/xp/address.dws?{address}.htm";
+        }
     }
 }

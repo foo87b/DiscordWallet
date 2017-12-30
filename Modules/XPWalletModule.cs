@@ -1,10 +1,10 @@
 ﻿using Discord;
 using Discord.Commands;
 using DiscordWallet.Services;
+using DiscordWallet.Utilities.XPCoin;
 using NBitcoin;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DiscordWallet.Modules
@@ -35,7 +35,7 @@ namespace DiscordWallet.Modules
             
             if (String.IsNullOrWhiteSpace(command))
             {
-                await ReplySuccess(String.Join("\n", new string[]
+                await ReplySuccess(String.Join("\n", new[]
                 {
                     $"```asciidoc",
                     $"= コマンド一覧",
@@ -100,34 +100,23 @@ namespace DiscordWallet.Modules
             {
                 var account = await Wallet.GetAccount(Context.User, true);
 
-                var embed = new EmbedBuilder()
+                await ReplySuccess("eXperience Points 残高のご案内です。", DefaultEmbed(account, new EmbedBuilder()
                 {
                     Color = Color.DarkPurple,
                     Title = "eXperience Points: 残高",
-
-                    Description = String.Join("\n", new string[]
+                    Description = String.Join("\n", new[]
                     {
-                        $"{Context.User.Mention}さんの残高は下記となります。",
+                        $"{account.User.Mention}さんの残高は下記となります。",
                         $"`{COMMAND_TIP}`や`{COMMAND_RAIN}`で利用可能なのは検証済の分のみとなりますのでご注意ください。",
                     }),
-
-                    Author = new EmbedAuthorBuilder()
-                        .WithUrl(GetExplorerURL(account.Address))
-                        .WithName($"{Context.User.Username}#{Context.User.Discriminator}")
-                        .WithIconUrl(Context.User.GetAvatarUrl()),
-
                     Fields = new List<EmbedFieldBuilder>
                     {
-                        new EmbedFieldBuilder().WithName("残高").WithValue($"{MoneyToString(account.TotalBalance)} XP"),
-                        new EmbedFieldBuilder().WithIsInline(true).WithName("検証済").WithValue($"{MoneyToString(account.ConfirmedBalance)} XP"),
-                        new EmbedFieldBuilder().WithIsInline(true).WithName("検証中").WithValue($"{MoneyToString(account.PendingBalance)} XP"),
-                        new EmbedFieldBuilder().WithIsInline(true).WithName("未検証").WithValue($"{MoneyToString(account.UnconfirmedBalance)} XP"),
+                        new EmbedFieldBuilder().WithName("残高").WithValue($"{XPCoin.ToString(account.TotalBalance)} XP"),
+                        new EmbedFieldBuilder().WithIsInline(true).WithName("検証済").WithValue($"{XPCoin.ToString(account.ConfirmedBalance)} XP"),
+                        new EmbedFieldBuilder().WithIsInline(true).WithName("検証中").WithValue($"{XPCoin.ToString(account.PendingBalance)} XP"),
+                        new EmbedFieldBuilder().WithIsInline(true).WithName("未検証").WithValue($"{XPCoin.ToString(account.UnconfirmedBalance)} XP"),
                     },
-                };
-
-                
-
-                await ReplySuccess("eXperience Points 残高のご案内です。", embed);
+                }));
             }
             catch (Exception e)
             {
@@ -145,19 +134,19 @@ namespace DiscordWallet.Modules
             try
             {
                 var account = await Wallet.GetAccount(Context.User);
-                var embed = new EmbedBuilder()
+
+                await ReplySuccess("eXperience Points 預入先のご案内です。", DefaultEmbed(account, new EmbedBuilder()
                 {
                     Color = Color.DarkBlue,
                     Title = "eXperience Points: 預入先アドレス",
-                    Description = $"```{account.Address}```上記は{Context.User.Mention}さん専用の預入先のアドレスとなります。\n預入後は {XPWallet.CONFIRMATION} confirmation にて利用が可能となります。",
-                    ThumbnailUrl = Context.User.GetAvatarUrl(),
-                    Author = new EmbedAuthorBuilder()
-                        .WithUrl(GetExplorerURL(account.Address))
-                        .WithName($"{Context.User.Username}#{Context.User.Discriminator}")
-                        .WithIconUrl(Context.User.GetAvatarUrl()),
-                };
-
-                await ReplySuccess("eXperience Points 預入先のご案内です。", embed);
+                    ThumbnailUrl = account.User.GetAvatarUrl(),
+                    Description = String.Join("\n", new[]
+                    {
+                        $"```{account.Address}```",
+                        $"上記は{account.User.Mention}さん専用の預入先のアドレスとなります。",
+                        $"預入後は {XPWallet.CONFIRMATION} confirmation にて利用が可能となります。",
+                    }),
+                }));
             }
             catch (Exception e)
             {
@@ -195,26 +184,25 @@ namespace DiscordWallet.Modules
             });
         }
 
-        private string GetExplorerURL(BitcoinAddress address)
+        private EmbedBuilder DefaultEmbed(XPWalletAccount account, EmbedBuilder embed = null)
         {
-            return $"https://chainz.cryptoid.info/xp/address.dws?{address}.htm";
+            return (embed ?? new EmbedBuilder())
+                .WithAuthor(new EmbedAuthorBuilder()
+                {
+                    Url = XPCoin.GetExplorerURL(account.Address),
+                    Name = $"{account.User.Username}#{account.User.Discriminator}",
+                    IconUrl = account.User.GetAvatarUrl(),
+                })
+                .WithFooter(new EmbedFooterBuilder()
+                {
+                    Text = "XPJPWallet",
+                    IconUrl = Context.Client.CurrentUser.GetAvatarUrl(),
+                })
+                .WithCurrentTimestamp();
         }
 
-        private string MoneyToString(Money money)
+        private async Task ReplySuccess(string message, Embed embed = null)
         {
-            return money.ToDecimal(MoneyUnit.BTC).ToString("F6");
-        }
-
-        private async Task ReplySuccess(string message, EmbedBuilder embed = null)
-        {
-            if (embed != null)
-            {
-                embed.Timestamp = DateTime.UtcNow;
-                embed.Footer = new EmbedFooterBuilder()
-                    .WithText("XPJPWallet")
-                    .WithIconUrl(Context.Client.CurrentUser.GetAvatarUrl());
-            }
-
             await Task.WhenAll(new List<Task>()
             {
                 Context.Message.AddReactionAsync(REACTION_SUCCESS),
