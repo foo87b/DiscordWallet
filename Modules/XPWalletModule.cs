@@ -185,7 +185,7 @@ namespace DiscordWallet.Modules
                     embed.Color = Color.DarkerGrey;
                     embed.Description = String.Join("\n", new[]
                     {
-                        $"{account.User.Mention}さんが指定されたアドレスへ送付が完了しました。",
+                        $"{account.User.Mention}さんが指定された宛先へ送付が完了しました。",
                         $"今回の取引の詳細は下記となりますので確認をお願いします。",
                     });
 
