@@ -225,7 +225,7 @@ namespace DiscordWallet.Modules
         {
             await Context.Message.AddReactionAsync(REACTION_PROGRESS);
 
-            var destination = Wallet.GetAddress(user);
+            var destination = await Wallet.GetAddress(user);
             var account = await Wallet.GetAccount(Context.User, true);
             var embed = DefaultEmbed(account, new EmbedBuilder()
             {

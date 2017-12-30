@@ -36,9 +36,16 @@ namespace DiscordWallet.Services
             return AccountList.Contains(user.Id);
         }
 
-        public BitcoinAddress GetAddress(IUser user)
+        public async Task<BitcoinAddress> GetAddress(IUser user)
         {
-            return XPWalletAccountKey.Create(user).Address;
+            var key = XPWalletAccountKey.Create(user);
+
+            if (!HasAccount(user))
+            {
+                await CreateAccount(key);
+            }
+
+            return key.Address;
         }
 
         public async Task<XPWalletAccount> GetAccount(IUser user, bool sync = false)
