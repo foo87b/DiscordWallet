@@ -4,9 +4,11 @@ using Discord.WebSocket;
 using DiscordWallet.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace DiscordWallet.Core
@@ -15,8 +17,11 @@ namespace DiscordWallet.Core
     {
         public bool Initialized => ServiceProvider != null;
 
+        private Task CommandTask;
+        private CancellationTokenSource TokenSource;
         private IServiceProvider ServiceProvider;
         private Dictionary<string, CommandService> CommandList = new Dictionary<string, CommandService>();
+        private BlockingCollection<(CommandService service, ICommandContext context, string command)> CommandQueue = new BlockingCollection<(CommandService service, ICommandContext context, string command)>();
 
         private string Token { get; }
         private Logger Logger { get; }
@@ -94,6 +99,10 @@ namespace DiscordWallet.Core
                 await Discord.LoginAsync(TokenType.Bot, Token);
             }
 
+            TokenSource = new CancellationTokenSource();
+            CommandTask = new Task<Task>(ProcessQueueAsync, TokenSource.Token);
+            CommandTask.Start();
+
             await Discord.StartAsync();
 
             Logger.WriteLine($"DiscordBot: Started.");
@@ -107,6 +116,9 @@ namespace DiscordWallet.Core
             }
 
             await Discord.StopAsync();
+
+            TokenSource.Cancel();
+            CommandTask.Wait();
 
             if (Discord.LoginState == LoginState.LoggedIn)
             {
@@ -125,7 +137,7 @@ namespace DiscordWallet.Core
                 return;
             }
             
-            CommandList.AsParallel().ForAll(async kv =>
+            CommandList.AsParallel().ForAll(kv =>
             {
                 var pos = 0;
                 var command = (message.HasStringPrefix(kv.Key, ref pos) || message.HasMentionPrefix(Discord.CurrentUser, ref pos))
@@ -136,13 +148,26 @@ namespace DiscordWallet.Core
                 {
                     return;
                 }
-
-                var context = new CommandContext(Discord, message);
-                var result = await kv.Value.ExecuteAsync(context, command, ServiceProvider);
-
-                var type = result.IsSuccess ? "Success" : "Failure";
-                Logger.WriteLine($"DiscordBot: {type}: #{message.Channel.Name} [{message.Author.Username}#{message.Author.Discriminator}] `{command}` {result.ErrorReason}");
+                
+                CommandQueue.Add((kv.Value, new CommandContext(Discord, message), command));
             });
+        }
+
+        private async Task ProcessQueueAsync()
+        {
+            try
+            {
+                while (!TokenSource.Token.IsCancellationRequested)
+                {
+                    var queue = CommandQueue.Take(TokenSource.Token);
+
+                    var result = await queue.service.ExecuteAsync(queue.context, queue.command, ServiceProvider);
+
+                    var type = result.IsSuccess ? "Success" : "Failure";
+                    Logger.WriteLine($"DiscordBot: {type}: #{queue.context.Channel.Name} [{queue.context.User.Username}#{queue.context.User.Discriminator}] `{queue.command}` {result.ErrorReason}");
+                }
+            }
+            catch (OperationCanceledException) { }
         }
     }
 }
