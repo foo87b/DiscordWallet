@@ -5,18 +5,37 @@ using NBitcoin.RPC;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security;
 
 namespace DiscordWallet.Utilities.XPCoin
 {
 
     public class XPWalletAccountKey
     {
-        private static ExtKey MasterKey = ExtKey.Parse(Environment.GetEnvironmentVariable("WALLET_MASTER_PRIVATE_KEY"), XPCoin.Network);
+        public static bool Ready => MasterKey != null;
+        private static ExtKey MasterKey;
 
         public IUser User { get; }
         public string Label { get; }
         public KeyPath KeyPath { get; }
         public BitcoinAddress Address { get; }
+
+        public static void Setup(string wif) => MasterKey = ExtKey.Parse(wif, XPCoin.Network);
+        public static void Setup(ExtPubKey extPubKey, Key key) => MasterKey = new ExtKey(extPubKey, key);
+        public static void Setup(string extPubKey, string wif, SecureString password = null)
+        {
+            if (password == null)
+            {
+                Setup(ExtPubKey.Parse(extPubKey, XPCoin.Network), Key.Parse(wif, XPCoin.Network));
+            }
+            else
+            {
+                var credential = new System.Net.NetworkCredential(String.Empty, password);
+                password.Dispose();
+
+                Setup(ExtPubKey.Parse(extPubKey, XPCoin.Network), BitcoinEncryptedSecret.Create(wif, XPCoin.Network).GetKey(credential.Password));
+            }
+        }
 
         public static XPWalletAccountKey Create(IUser user)
         {
