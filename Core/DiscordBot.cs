@@ -15,6 +15,11 @@ namespace DiscordWallet.Core
 {
     public class DiscordBot
     {
+        public static readonly Emoji REACTION_DENIED   = new Emoji("\U0001f6ab"); // U+1F6AB is :no_entry_sign:
+        public static readonly Emoji REACTION_ERROR    = new Emoji("\u26a0");     // U+26A0  is :warning:
+        public static readonly Emoji REACTION_PROGRESS = new Emoji("\u23f3");     // U+23F3  is :hourglass_flowing_sand:
+        public static readonly Emoji REACTION_UNKNOWN  = new Emoji("\u2753");     // U+2753  is :question:
+
         public bool Initialized => ServiceProvider != null;
 
         private Task CommandTask;
@@ -148,8 +153,20 @@ namespace DiscordWallet.Core
                 {
                     return;
                 }
-                
-                CommandQueue.Add((kv.Value, new CommandContext(Discord, message), command));
+
+                var context = new CommandContext(Discord, message);
+                var result = kv.Value.Search(context, command);
+
+                if (result.IsSuccess)
+                {
+                    context.Message.AddReactionAsync(REACTION_PROGRESS);
+                    CommandQueue.Add((kv.Value, context, command));
+                }
+                else if (result.Error != CommandError.UnknownCommand)
+                {
+                    context.Message.AddReactionAsync(REACTION_UNKNOWN);
+                    context.Channel.SendMessageAsync($"{context.User.Mention} 存在しないコマンドです、入力内容をご確認ください。```{command}```");
+                }
             });
         }
 
@@ -159,12 +176,22 @@ namespace DiscordWallet.Core
             {
                 while (!TokenSource.Token.IsCancellationRequested)
                 {
-                    var queue = CommandQueue.Take(TokenSource.Token);
+                    (var service, var context, var command) = CommandQueue.Take(TokenSource.Token);
 
-                    var result = await queue.service.ExecuteAsync(queue.context, queue.command, ServiceProvider);
+                    var result = await service.ExecuteAsync(context, command, ServiceProvider);
+                    if (result.Error == CommandError.Unsuccessful)
+                    {
+                        context.Message.AddReactionAsync(REACTION_ERROR);
+                        context.Channel.SendMessageAsync($"{context.User.Mention} システムエラーが発生しました、モデレーターにご連絡ください。```{result.ErrorReason}```");
+                    }
+                    else if (!result.IsSuccess)
+                    {
+                        context.Message.AddReactionAsync(REACTION_UNKNOWN);
+                        context.Channel.SendMessageAsync($"{context.User.Mention} コマンドを実行できませんでした、入力内容をご確認ください。 ({result.Error})```{command}```");
+                    }
 
                     var type = result.IsSuccess ? "Success" : "Failure";
-                    Logger.WriteLine($"DiscordBot: {type}: #{queue.context.Channel.Name} [{queue.context.User.Username}#{queue.context.User.Discriminator}] `{queue.command}` {result.ErrorReason}");
+                    Logger.WriteLine($"DiscordBot: {type}: #{context.Channel.Name} [{context.User.Username}#{context.User.Discriminator}] `{command}` {result.ErrorReason}");
                 }
             }
             catch (OperationCanceledException) { }
