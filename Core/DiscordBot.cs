@@ -81,13 +81,8 @@ namespace DiscordWallet.Core
             return this;
         }
         
-        public CommandService SetupCommand(string prefix)
+        public CommandService AddCommand(string prefix)
         {
-            if (Initialized)
-            {
-                throw new InvalidOperationException();
-            }
-
             if (!CommandList.TryGetValue(prefix, out var command))
             {
                 CommandList.Add(prefix, new CommandService());
@@ -144,50 +139,43 @@ namespace DiscordWallet.Core
 
         private async Task OnMessageReceived(SocketMessage arg)
         {
+            var pos = int.MinValue;
             var message = arg as SocketUserMessage;
+            (var prefix, var service) = CommandList.FirstOrDefault(kv => message?.HasStringPrefix(kv.Key, ref pos) ?? false);
 
-            if (message == null)
+            if (pos >= 0)
             {
-                return;
-            }
-            
-            CommandList.AsParallel().ForAll(kv =>
-            {
-                var pos = 0;
-                var command = (message.HasStringPrefix(kv.Key, ref pos) || message.HasMentionPrefix(Discord.CurrentUser, ref pos))
-                    ? Regex.Replace(message.Content.Substring(pos), @"\p{Zs}", " ")
-                    : string.Empty;
-
-                if (command == string.Empty || !Regex.IsMatch(command, @"^[a-z0-9]", RegexOptions.IgnoreCase))
-                {
-                    return;
-                }
-
+                var input = Regex.Replace(message.Content.Substring(pos).Trim(), @"\p{Zs}", " ");
                 var context = new CommandContext(Discord, message);
-                var result = kv.Value.Search(context, command);
-                
-                if (result.IsSuccess)
-                {
-                    var name = result.Commands[0].Command.Name;
-                    var module = result.Commands[0].Command.Module.Name;
-                    var execute = Permission?.GetExecutable((IGuildChannel)context.Channel, module, name) ?? true;
 
-                    if (execute)
-                    {
-                        context.Message.AddReactionAsync(REACTION_PROGRESS);
-                        CommandQueue.Add((kv.Value, context, command));
-                    }
-                    else
-                    {
-                        context.Message.AddReactionAsync(REACTION_DENIED);
-                    }
-                }
-                else if (result.Error != CommandError.UnknownCommand)
+                await ProcessCommand(service, context, input);
+            }
+        }
+
+        private async Task ProcessCommand(CommandService service, CommandContext context, string input)
+        {
+            var result = service.Search(context, input);
+
+            if (result.IsSuccess)
+            {
+                var module = result.Commands[0].Command.Module.Name;
+                var command = result.Commands[0].Command.Name;
+                var execute = Permission?.GetExecutable((IGuildChannel)context.Channel, module, command) ?? true;
+
+                if (execute)
                 {
-                    context.Message.AddReactionAsync(REACTION_UNKNOWN);
-                    context.Channel.SendMessageAsync($"{context.User.Mention} 存在しないコマンドです、入力内容をご確認ください。```{command}```");
+                    await context.Message.AddReactionAsync(REACTION_PROGRESS);
+                    CommandQueue.Add((service, context, input));
                 }
-            });
+                else
+                {
+                    context.Message.AddReactionAsync(REACTION_DENIED);
+                }
+            }
+            else
+            {
+                context.Message.AddReactionAsync(REACTION_UNKNOWN);
+            }
         }
 
         private async Task ProcessQueueAsync()
@@ -201,13 +189,13 @@ namespace DiscordWallet.Core
                     var result = await service.ExecuteAsync(context, command, ServiceProvider);
                     if (result.Error == CommandError.Exception)
                     {
-                        context.Message.AddReactionAsync(REACTION_ERROR);
-                        context.Channel.SendMessageAsync($"{context.User.Mention} システムエラーが発生しました、モデレーターにご連絡ください。```{result.ErrorReason}```");
+                        await context.Message.AddReactionAsync(REACTION_ERROR);
+                        await context.Channel.SendMessageAsync($"{context.User.Mention} システムエラーが発生しました、モデレーターにご連絡ください。```{result.ErrorReason}```");
                     }
                     else if (!result.IsSuccess)
                     {
-                        context.Message.AddReactionAsync(REACTION_UNKNOWN);
-                        context.Channel.SendMessageAsync($"{context.User.Mention} コマンドを実行できませんでした、入力内容をご確認ください。 ({result.Error})```{command}```");
+                        await context.Message.AddReactionAsync(REACTION_UNKNOWN);
+                        await context.Channel.SendMessageAsync($"{context.User.Mention} コマンドを実行できませんでした、入力内容をご確認ください。 ({result.Error})```{command}```");
                     }
 
                     var type = result.IsSuccess ? "Success" : "Failure";

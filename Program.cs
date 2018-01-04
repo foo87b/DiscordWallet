@@ -19,8 +19,7 @@ namespace DiscordWallet
                 Environment.GetEnvironmentVariable("SERVICE_PERMISSION_API")
                 );
             DiscordBot.AddService<Services.XPWallet>();
-            DiscordBot.SetupCommand("!")
-                .AddModuleAsync<Modules.XPWalletModule>();
+            DiscordBot.AddCommand("!xp").AddModuleAsync<Modules.XPWalletModule>();
 
             if (SetupWallet())
             {

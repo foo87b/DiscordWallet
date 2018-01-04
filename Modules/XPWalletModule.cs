@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DiscordWallet.Modules
 {
-    [Group("xp")]
+    [Name("xp")]
     public class XPWalletModule : ModuleBase
     {
         public const decimal TRANSFER_MIN = 0.01m;
