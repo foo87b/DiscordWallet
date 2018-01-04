@@ -30,6 +30,7 @@ namespace DiscordWallet.Core
 
         private string Token { get; }
         private Logger Logger { get; }
+        private Permission Permission { get; } = null;
         private IServiceCollection ServiceCollection { get; } = new ServiceCollection();
         private DiscordSocketClient Discord { get; } = new DiscordSocketClient(new DiscordSocketConfig()
         {
@@ -37,13 +38,21 @@ namespace DiscordWallet.Core
             DefaultRetryMode = RetryMode.AlwaysRetry,
         });
         
-        public DiscordBot(string token)
+        public DiscordBot(string token, string permissionUri = null)
         {
             Token = token;
             Logger = new Logger(Discord);
 
             AddService(Discord);
             AddService(Logger);
+
+            if (!String.IsNullOrEmpty(permissionUri))
+            {
+                Logger.WriteLine("DiscordBot: Permission Service: Loading...");
+
+                Permission = new Permission(new Uri(permissionUri));
+                AddService(Permission);
+            }
 
             Discord.MessageReceived += OnMessageReceived;
         }
@@ -156,11 +165,22 @@ namespace DiscordWallet.Core
 
                 var context = new CommandContext(Discord, message);
                 var result = kv.Value.Search(context, command);
-
+                
                 if (result.IsSuccess)
                 {
-                    context.Message.AddReactionAsync(REACTION_PROGRESS);
-                    CommandQueue.Add((kv.Value, context, command));
+                    var name = result.Commands[0].Command.Name;
+                    var module = result.Commands[0].Command.Module.Name;
+                    var execute = Permission?.GetExecutable((IGuildChannel)context.Channel, module, name) ?? true;
+
+                    if (execute)
+                    {
+                        context.Message.AddReactionAsync(REACTION_PROGRESS);
+                        CommandQueue.Add((kv.Value, context, command));
+                    }
+                    else
+                    {
+                        context.Message.AddReactionAsync(REACTION_DENIED);
+                    }
                 }
                 else if (result.Error != CommandError.UnknownCommand)
                 {
@@ -179,7 +199,7 @@ namespace DiscordWallet.Core
                     (var service, var context, var command) = CommandQueue.Take(TokenSource.Token);
 
                     var result = await service.ExecuteAsync(context, command, ServiceProvider);
-                    if (result.Error == CommandError.Unsuccessful)
+                    if (result.Error == CommandError.Exception)
                     {
                         context.Message.AddReactionAsync(REACTION_ERROR);
                         context.Channel.SendMessageAsync($"{context.User.Mention} システムエラーが発生しました、モデレーターにご連絡ください。```{result.ErrorReason}```");

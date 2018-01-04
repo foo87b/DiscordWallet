@@ -14,7 +14,10 @@ namespace DiscordWallet
         {
             DotNetEnv.Env.Load();
 
-            DiscordBot = new DiscordBot(Environment.GetEnvironmentVariable("DISCORD_TOKEN"));
+            DiscordBot = new DiscordBot(
+                Environment.GetEnvironmentVariable("DISCORD_TOKEN"),
+                Environment.GetEnvironmentVariable("SERVICE_PERMISSION_API")
+                );
             DiscordBot.AddService<Services.XPWallet>();
             DiscordBot.SetupCommand("!")
                 .AddModuleAsync<Modules.XPWalletModule>();
